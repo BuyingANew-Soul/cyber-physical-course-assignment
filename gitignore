@@ -1,0 +1,20 @@
+# ROS2 build artifacts — never commit these
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# VS Code local settings (keep .devcontainer/, ignore workspace-specific)
+.vscode/settings.json
+.vscode/launch.json
+
+# macOS
+.DS_Store
+
+# Docker build cache
+.dockerignore

@@ -1,0 +1,60 @@
+# ============================================================
+# docker-compose.yml — ROS2 Jazzy + Webots Course Environment
+# ============================================================
+# Usage:
+#   docker compose build          # First time only
+#   docker compose run --rm ros2  # Start a shell session
+# ============================================================
+
+services:
+  ros2:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile
+    image: course-ros2-webots:jazzy
+    container_name: ros2_course
+
+    # ── Volume mounts ───────────────────────────────────────
+    volumes:
+      # Mount the entire repo into the container workspace.
+      # Students edit files on their host machine; changes
+      # are instantly reflected inside the container.
+      - ./assignments:/ros2_ws/src/assignments
+      - ./worlds:/ros2_ws/worlds
+
+      # ── GUI / Display forwarding ──────────────────────────
+      # Linux: X11 socket (works natively)
+      - /tmp/.X11-unix:/tmp/.X11-unix
+
+    # ── Environment variables ───────────────────────────────
+    environment:
+      # Linux/Mac: DISPLAY is forwarded from the host.
+      # Windows (WSLg): WSLg sets this automatically.
+      - DISPLAY=${DISPLAY}
+
+      # ROS2 DDS middleware
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+
+      # Webots: disable GPU requirement for containers
+      - WEBOTS_DISABLE_SAVE_SCREEN_PERSPECTIVE_ON_CLOSE=true
+      - LIBGL_ALWAYS_SOFTWARE=0
+
+    # ── Networking ──────────────────────────────────────────
+    # host mode simplifies ROS2 DDS node discovery between
+    # terminals. Required for multi-node assignments.
+    network_mode: host
+
+    # ── Runtime ─────────────────────────────────────────────
+    # Keep container alive and interactive
+    stdin_open: true
+    tty: true
+
+    # NVIDIA GPU passthrough — requires nvidia-container-toolkit on the host.
+    # Gives Webots access to the real GPU instead of slow software rendering.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
