@@ -14,6 +14,14 @@ services:
     image: course-ros2-webots:jazzy
     container_name: ros2_course
 
+    # Force amd64 on all platforms — required because Webots only
+    # ships a Linux amd64 .deb, there is no arm64 Linux build.
+    # On Apple Silicon (M1/M2/M3) Docker Desktop uses Rosetta to
+    # emulate amd64 transparently. Performance is acceptable for
+    # coursework. Enable Rosetta in Docker Desktop → Settings →
+    # "Use Rosetta for x86/amd64 emulation on Apple Silicon".
+    platform: linux/amd64
+
     # ── Volume mounts ───────────────────────────────────────
     volumes:
       # Mount the entire repo into the container workspace.
@@ -48,13 +56,4 @@ services:
     # Keep container alive and interactive
     stdin_open: true
     tty: true
-
-    # NVIDIA GPU passthrough — requires nvidia-container-toolkit on the host.
-    # Gives Webots access to the real GPU instead of slow software rendering.
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+    # GPU passthrough is opt-in — see docker-compose.nvidia.yml

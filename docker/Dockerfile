@@ -1,6 +1,8 @@
 # ============================================================
 # ROS2 Jazzy + Webots Course Environment
-# Supports: amd64 (x86_64) and arm64 (Apple Silicon M1/M2/M3)
+# Platform: linux/amd64 (forced in docker-compose.yml)
+# Works on: Linux x86, Mac Intel, Mac Apple Silicon (Rosetta),
+#           Windows WSL2
 # ============================================================
 
 FROM ros:jazzy-ros-base
@@ -44,10 +46,8 @@ RUN apt-get update && apt-get install -y \
     mesa-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Webots ───────────────────────────────────────────────────
-# Install dependencies that Webots R2025a requires on Ubuntu 24.04 Noble.
-# These were not available or named differently in older Ubuntu releases,
-# which is why the R2023b .deb failed with unmet dependencies.
+# ── Webots dependencies ──────────────────────────────────────
+# Install libraries required by the Webots .deb on Ubuntu 24.04
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     libfreeimage3 \
@@ -62,19 +62,12 @@ RUN apt-get update && apt-get install -y \
     libswscale7 \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and install Webots R2025a — first release with full Ubuntu 24.04 support.
-# R2023b does NOT support Ubuntu 24.04 (which ros:jazzy-ros-base is based on).
+# ── Webots R2025a (amd64 only) ───────────────────────────────
+# NOTE: Cyberbotics does not provide an arm64 Linux .deb.
+# Apple Silicon users run this amd64 image via Rosetta emulation
+# (set platform: linux/amd64 in docker-compose.yml).
 RUN apt-get update && \
-    ARCH=$(dpkg --print-architecture) && \
-    echo "Detected architecture: $ARCH" && \
-    if [ "$ARCH" = "amd64" ]; then \
-        WEBOTS_DEB="webots_2025a_amd64.deb"; \
-    elif [ "$ARCH" = "arm64" ]; then \
-        WEBOTS_DEB="webots_2025a_arm64.deb"; \
-    else \
-        echo "Unsupported architecture: $ARCH" && exit 1; \
-    fi && \
-    wget -q "https://github.com/cyberbotics/webots/releases/download/R2025a/${WEBOTS_DEB}" \
+    wget -q "https://github.com/cyberbotics/webots/releases/download/R2025a/webots_2025a_amd64.deb" \
         -O /tmp/webots.deb && \
     apt-get install -y /tmp/webots.deb && \
     rm /tmp/webots.deb && \
@@ -84,6 +77,11 @@ RUN apt-get update && \
 ENV WEBOTS_HOME=/usr/local/webots
 ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 
+# ── NVIDIA GPU (used only when docker-compose.nvidia.yml is active)
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=graphics,utility,compute
+ENV __GLX_VENDOR_LIBRARY_NAME=nvidia
+
 # Source ROS2 automatically in every new shell
 RUN echo "source /opt/ros/jazzy/setup.bash" >> /root/.bashrc && \
     echo "source /ros2_ws/install/setup.bash 2>/dev/null || true" >> /root/.bashrc && \
@@ -92,13 +90,6 @@ RUN echo "source /opt/ros/jazzy/setup.bash" >> /root/.bashrc && \
 # ── Display environment ──────────────────────────────────────
 # DISPLAY is passed in at runtime via docker-compose
 ENV DISPLAY=:0
-
-# ── NVIDIA GPU ───────────────────────────────────────────────
-# These tell the NVIDIA container runtime to expose the GPU,
-# and tell Webots/OpenGL to use it instead of software Mesa.
-ENV NVIDIA_VISIBLE_DEVICES=all
-ENV NVIDIA_DRIVER_CAPABILITIES=graphics,utility,compute
-ENV __GLX_VENDOR_LIBRARY_NAME=nvidia
 
 # ── Workspace ────────────────────────────────────────────────
 WORKDIR /ros2_ws
