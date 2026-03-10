@@ -1,6 +1,6 @@
-# Assignment X — [Assignment Title]
+# Assignment X 
 
-> **Course:** Introduction to ROS2 & Robotics Simulation  
+ 
 > **Environment:** ROS2 Jazzy + Webots R2023b (Docker)
 
 ---
