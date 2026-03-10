@@ -1,9 +1,12 @@
 # ============================================================
-# docker-compose.yml — ROS2 Jazzy + Webots Course Environment
-# ============================================================
-# Usage:
-#   docker compose build          # First time only
-#   docker compose run --rm ros2  # Start a shell session
+# docker-compose.yml — ROS2 Jazzy Course Environment
+#
+# Webots:  runs natively on your host OS (better performance)
+# ROS2:    runs inside this container
+#
+# The src/ folder is mounted into the container so you edit
+# code on your host machine and run/build inside the container.
+# Git is always used from the host machine.
 # ============================================================
 
 services:
@@ -11,49 +14,83 @@ services:
     build:
       context: ./docker
       dockerfile: Dockerfile
-    image: course-ros2-webots:jazzy
+    image: course-ros2:jazzy
     container_name: ros2_course
 
-    # Force amd64 on all platforms — required because Webots only
-    # ships a Linux amd64 .deb, there is no arm64 Linux build.
-    # On Apple Silicon (M1/M2/M3) Docker Desktop uses Rosetta to
-    # emulate amd64 transparently. Performance is acceptable for
-    # coursework. Enable Rosetta in Docker Desktop → Settings →
-    # "Use Rosetta for x86/amd64 emulation on Apple Silicon".
+    # Forces amd64 on all platforms for consistent ROS2 packages.
+    # Apple Silicon (M1/M2/M3): Docker Desktop emulates via Rosetta.
+    # Enable: Docker Desktop → Settings → General →
+    #         "Use Rosetta for x86/amd64 emulation on Apple Silicon"
     platform: linux/amd64
 
-    # ── Volume mounts ───────────────────────────────────────
+    # ── Volumes ─────────────────────────────────────────────
     volumes:
-      # Mount the entire repo into the container workspace.
-      # Students edit files on their host machine; changes
-      # are instantly reflected inside the container.
-      - ./assignments:/ros2_ws/src/assignments
+      # Your ROS2 packages — edit on host, build/run in container
+      - ./src:/ros2_ws/src
+
+      # Webots world files — accessible from container for launch files
       - ./worlds:/ros2_ws/worlds
 
-      # ── GUI / Display forwarding ──────────────────────────
-      # Linux: X11 socket (works natively)
-      - /tmp/.X11-unix:/tmp/.X11-unix
+      # Persist the built workspace across container restarts.
+      # Without this, colcon build reruns every time.
+      - ros2_build:/ros2_ws/build
+      - ros2_install:/ros2_ws/install
+      - ros2_log:/ros2_ws/log
 
-    # ── Environment variables ───────────────────────────────
+    # ── Environment ─────────────────────────────────────────
     environment:
-      # Linux/Mac: DISPLAY is forwarded from the host.
-      # Windows (WSLg): WSLg sets this automatically.
-      - DISPLAY=${DISPLAY}
-
-      # ROS2 DDS middleware
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 
-      # Webots: disable GPU requirement for containers
-      - WEBOTS_DISABLE_SAVE_SCREEN_PERSPECTIVE_ON_CLOSE=true
-      - LIBGL_ALWAYS_SOFTWARE=0
+      # Container runs as root — set USER so webots_ros2_driver
+      # doesn't fall back to 'default' username which breaks
+      # the controller connection handshake.
+      - USER=root
+
+      # Suppress the "install Webots?" prompt — the container
+      # doesn't need Webots installed, it connects via TCP.
+      - WEBOTS_HOME=/opt/webots
+
+      # Where Webots is running on the host OS.
+      # Linux:        localhost  (host network mode)
+      # Mac/Windows:  host.docker.internal
+      # Set in your .env file (see .env.example).
+      - WEBOTS_HOST=${WEBOTS_HOST:-host.docker.internal}
+
+      # This is the actual fix — has_shared_folder() checks for this env var.
+      # When set, controller_protocol() returns "tcp" instead of "ipc",
+      # and controller_ip_address() calls get_host_ip() which returns
+      # "host.docker.internal". One env var fixes everything.
+      - WEBOTS_SHARED_FOLDER=/tmp
+
+      # Tell webots_ros2_driver to use TCP to reach host Webots.
+      # Format: tcp://<host>:<port>/<robot_name_in_world>
+      # ⚠️  The robot name must exactly match the robot's name
+      # field in your Webots .wbt world file.
+      - WEBOTS_CONTROLLER_URL=tcp://${WEBOTS_HOST:-host.docker.internal}:1234/my_robot
 
     # ── Networking ──────────────────────────────────────────
-    # host mode simplifies ROS2 DDS node discovery between
-    # terminals. Required for multi-node assignments.
-    network_mode: host
+    # Linux uses host mode — container shares host network.
+    # ROS2 DDS can discover nodes freely, localhost = host machine.
+    #
+    # Mac/Windows uses bridge mode (host mode unsupported on
+    # Docker Desktop). host.docker.internal resolves to host.
+    #
+    # Set NETWORK_MODE in your .env file (see .env.example).
+    network_mode: ${NETWORK_MODE:-bridge}
+
+    # Makes host.docker.internal resolve on Linux too,
+    # so the same launch files work on all platforms.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
     # ── Runtime ─────────────────────────────────────────────
-    # Keep container alive and interactive
     stdin_open: true
     tty: true
-    # GPU passthrough is opt-in — see docker-compose.nvidia.yml
+
+# ── Named volumes ────────────────────────────────────────────
+# Persist build artifacts so colcon doesn't rebuild from scratch
+# every time you restart the container.
+volumes:
+  ros2_build:
+  ros2_install:
+  ros2_log:

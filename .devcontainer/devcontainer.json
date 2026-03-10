@@ -1,57 +1,51 @@
 {
-  // ── Dev Container config for VS Code ──────────────────────
-  // When students open this repo in VS Code, they'll be
-  // prompted to "Reopen in Container" — one click and
-  // they're fully inside the ROS2 + Webots environment.
-  "name": "ROS2 Jazzy + Webots",
+  "name": "ROS2 Jazzy",
 
-  // Use the same docker-compose.yml at repo root
+  // Reference the docker-compose at the repo root
   "dockerComposeFile": "../docker-compose.yml",
   "service": "ros2",
-
-  // Working directory inside the container
   "workspaceFolder": "/ros2_ws",
 
-  // ── VS Code extensions installed automatically ───────────
+  // ── VS Code extensions installed automatically ──────────
   "customizations": {
     "vscode": {
       "extensions": [
-        // ROS2 support
+        // ROS2
         "ms-iotcentral.vscode-ros",
-
         // Python
         "ms-python.python",
         "ms-python.pylint",
-
-        // C++ (for C++ ROS2 nodes)
+        "ms-python.black-formatter",
+        // C++
         "ms-vscode.cpptools",
-
+        "ms-vscode.cmake-tools",
         // Git
         "eamodio.gitlens",
-
         // Docker sidebar
         "ms-azuretools.vscode-docker",
-
-        // Helpful utilities
+        // General quality of life
+        "usernamehw.errorlens",
         "streetsidesoftware.code-spell-checker",
-        "usernamehw.errorlens"
+        "gruntfuggly.todo-tree"
       ],
-
-      // ── Editor settings inside container ────────────────
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
         "python.defaultInterpreterPath": "/usr/bin/python3",
         "editor.formatOnSave": true,
         "editor.tabSize": 4,
         "files.trimTrailingWhitespace": true,
-        "ros.distro": "jazzy"
+        "ros.distro": "jazzy",
+        // Point C++ IntelliSense at ROS2 headers
+        "C_Cpp.default.includePath": [
+          "/opt/ros/jazzy/include/**",
+          "/ros2_ws/src/**"
+        ]
       }
     }
   },
 
-  // ── Post-start: auto-build the ROS2 workspace ────────────
-  "postStartCommand": "cd /ros2_ws && colcon build --symlink-install 2>/dev/null || true",
+  // Build workspace automatically when container starts
+  "postStartCommand": "cd /ros2_ws && colcon build --symlink-install 2>&1 | tail -5 || true",
 
-  // Run as root inside container (simplest for course use)
   "remoteUser": "root"
 }

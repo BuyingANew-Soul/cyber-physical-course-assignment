@@ -1,101 +1,93 @@
 # ============================================================
-# ROS2 Jazzy + Webots Course Environment
-# Platform: linux/amd64 (forced in docker-compose.yml)
-# Works on: Linux x86, Mac Intel, Mac Apple Silicon (Rosetta),
-#           Windows WSL2
+# ROS2 Jazzy — Course Environment
+# Webots runs natively on the host OS.
+# This container handles all ROS2 work only.
+# Platform: linux/amd64 (consistent across all host OSes)
 # ============================================================
 
 FROM ros:jazzy-ros-base
 
-# Avoid interactive prompts during apt installs
 ENV DEBIAN_FRONTEND=noninteractive
 
-# ── System dependencies ──────────────────────────────────────
+# ── ROS2 packages ─────────────────────────────────────────────
 RUN apt-get update && apt-get install -y \
-    # ROS2 tools
+    # Core ROS2 tools
+    ros-jazzy-ros-base \
+    ros-jazzy-ros2-controllers \
+    ros-jazzy-ros2-control \
+    # Webots-ROS2 bridge (driver that talks to Webots on host)
     ros-jazzy-webots-ros2 \
+    # DDS middleware
     ros-jazzy-rmw-cyclonedds-cpp \
+    ros-jazzy-rmw-fastrtps-cpp \
+    # Visualisation & debugging
+    ros-jazzy-rviz2 \
     ros-jazzy-rqt \
     ros-jazzy-rqt-common-plugins \
-    ros-jazzy-rviz2 \
+    ros-jazzy-rqt-graph \
+    ros-jazzy-rqt-topic \
+    ros-jazzy-rqt-tf-tree \
+    # TF2
+    ros-jazzy-tf2-ros \
+    ros-jazzy-tf2-tools \
+    # Navigation (useful for later assignments)
+    ros-jazzy-nav2-bringup \
+    ros-jazzy-nav-msgs \
+    # Common message types
+    ros-jazzy-geometry-msgs \
+    ros-jazzy-sensor-msgs \
+    ros-jazzy-std-msgs \
+    ros-jazzy-std-srvs \
+    # Build tools
     python3-colcon-common-extensions \
+    python3-colcon-mixin \
     python3-rosdep \
+    python3-vcstool \
     python3-pip \
     # Utilities
-    wget \
-    curl \
     git \
+    curl \
+    wget \
     nano \
     vim \
+    tree \
     bash-completion \
-    # GUI / display support
-    libxkbcommon-x11-0 \
-    libxcb-icccm4 \
-    libxcb-image0 \
-    libxcb-keysyms1 \
-    libxcb-randr0 \
-    libxcb-render-util0 \
-    libxcb-xinerama0 \
-    libxcb-xfixes0 \
-    libxcb-cursor0 \
-    libxcb-util1 \
-    libdbus-1-3 \
-    libegl1 \
-    libgl1 \
-    x11-apps \
-    mesa-utils \
+    iproute2 \
+    iputils-ping \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Webots dependencies ──────────────────────────────────────
-# Install libraries required by the Webots .deb on Ubuntu 24.04
-RUN apt-get update && apt-get install -y \
-    ffmpeg \
-    libfreeimage3 \
-    libssh-4 \
-    libzip4t64 \
-    xserver-xorg-core \
-    xvfb \
-    libglu1-mesa \
-    libavcodec60 \
-    libavformat60 \
-    libavutil58 \
-    libswscale7 \
-    && rm -rf /var/lib/apt/lists/*
+# ── Python packages ───────────────────────────────────────────
+RUN pip install --break-system-packages \
+    transforms3d \
+    numpy \
+    matplotlib
 
-# ── Webots R2025a (amd64 only) ───────────────────────────────
-# NOTE: Cyberbotics does not provide an arm64 Linux .deb.
-# Apple Silicon users run this amd64 image via Rosetta emulation
-# (set platform: linux/amd64 in docker-compose.yml).
-RUN apt-get update && \
-    wget -q "https://github.com/cyberbotics/webots/releases/download/R2025a/webots_2025a_amd64.deb" \
-        -O /tmp/webots.deb && \
-    apt-get install -y /tmp/webots.deb && \
-    rm /tmp/webots.deb && \
-    rm -rf /var/lib/apt/lists/*
+# ── colcon mixin (faster builds) ─────────────────────────────
+RUN colcon mixin add default \
+    https://raw.githubusercontent.com/colcon/colcon-mixin-repository/master/index.yaml \
+    && colcon mixin update default || true
 
-# ── Environment setup ────────────────────────────────────────
-ENV WEBOTS_HOME=/usr/local/webots
+# ── rosdep init ───────────────────────────────────────────────
+RUN rosdep update
+
+# ── Environment ──────────────────────────────────────────────
 ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 
-# ── NVIDIA GPU (used only when docker-compose.nvidia.yml is active)
-ENV NVIDIA_VISIBLE_DEVICES=all
-ENV NVIDIA_DRIVER_CAPABILITIES=graphics,utility,compute
-ENV __GLX_VENDOR_LIBRARY_NAME=nvidia
-
-# Source ROS2 automatically in every new shell
-RUN echo "source /opt/ros/jazzy/setup.bash" >> /root/.bashrc && \
+# Auto-source ROS2 and the workspace in every shell
+RUN echo "" >> /root/.bashrc && \
+    echo "# ROS2 setup" >> /root/.bashrc && \
+    echo "source /opt/ros/jazzy/setup.bash" >> /root/.bashrc && \
     echo "source /ros2_ws/install/setup.bash 2>/dev/null || true" >> /root/.bashrc && \
-    echo "export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp" >> /root/.bashrc
-
-# ── Display environment ──────────────────────────────────────
-# DISPLAY is passed in at runtime via docker-compose
-ENV DISPLAY=:0
+    echo "export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp" >> /root/.bashrc && \
+    echo "" >> /root/.bashrc && \
+    echo "# Helpful aliases" >> /root/.bashrc && \
+    echo "alias cb='cd /ros2_ws && colcon build --symlink-install'" >> /root/.bashrc && \
+    echo "alias cbs='cd /ros2_ws && colcon build --symlink-install --packages-select'" >> /root/.bashrc && \
+    echo "alias src='source /ros2_ws/install/setup.bash'" >> /root/.bashrc && \
+    echo "alias rt='ros2 topic list'" >> /root/.bashrc && \
+    echo "alias rn='ros2 node list'" >> /root/.bashrc
 
 # ── Workspace ────────────────────────────────────────────────
 WORKDIR /ros2_ws
 
-# Pre-initialize rosdep (speeds up first run for students)
-RUN rosdep update
-
-# Default command: interactive bash
 CMD ["/bin/bash"]
