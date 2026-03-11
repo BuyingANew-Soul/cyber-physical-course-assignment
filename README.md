@@ -56,8 +56,8 @@ Install these two extensions in VS Code (`Ctrl+Shift+X`):
 ### Step 1 — Clone the repo
 
 ```bash
-git clone https://github.com/your-course/assignmentX.git
-cd assignmentX
+git clone git@github.com:BuyingANew-Soul/cyber-physical-course-assignment.git
+cd cyber-physical-course-assignment
 ```
 
 ### Step 2 — Create your .env file
@@ -136,22 +136,22 @@ source install/setup.bash
 ### Build a single package (faster)
 
 ```bash
-cbs my_robot_pkg    # alias for: colcon build --symlink-install --packages-select
+cbs my_package    # alias for: colcon build --symlink-install --packages-select
 ```
 
 ### Launch the full simulation
 
 ```bash
-ros2 launch my_robot_pkg robot.launch.py
+ros2 launch my_package robot.launch.py
 ```
 
 > Make sure Webots is already open with the correct world before running this.
 
-### Run a single node
+<!-- ### Run a single node
 
 ```bash
-ros2 run my_robot_pkg example_node
-```
+ros2 run my_package example_node
+``` -->
 
 ### Useful debugging commands
 
@@ -175,8 +175,8 @@ assignmentX/
 ├── docker/
 │   └── Dockerfile              # ROS2 environment definition
 ├── src/
-│   └── my_robot_pkg/           # ← YOUR CODE LIVES HERE
-│       ├── my_robot_pkg/
+│   └── my_package/           # ← YOUR CODE LIVES HERE
+│       ├── my_package/
 │       │   ├── __init__.py
 │       │   └── example_node.py # starter node — copy & modify
 │       ├── launch/
@@ -185,6 +185,7 @@ assignmentX/
 │       ├── package.xml
 │       ├── setup.py            # register new nodes here
 │       └── setup.cfg
+        └── worlds
 ├── worlds/                     # Webots .wbt world files
 ├── docker-compose.yml
 ├── .env.example                # copy to .env, set your OS values
@@ -197,10 +198,10 @@ assignmentX/
 
 ## 6. Adding a new node
 
-1. Create `src/my_robot_pkg/my_robot_pkg/my_new_node.py`
+1. Create `src/my_package/my_package/my_new_node.py`
 2. Register it in `setup.py` under `entry_points`:
    ```python
-   'my_new_node = my_robot_pkg.my_new_node:main',
+   'my_new_node = my_package.my_new_node:main',
    ```
 3. Rebuild:
    ```bash
@@ -208,7 +209,7 @@ assignmentX/
    ```
 4. Run it:
    ```bash
-   ros2 run my_robot_pkg my_new_node
+   ros2 run my_package my_new_node
    ```
 
 ---
